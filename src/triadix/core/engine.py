@@ -34,6 +34,8 @@ class TriadicEngine:
         self.hE = ZERO32
         self.hI = ZERO32
         self.hC = ZERO32
+        self.mempool: list[Transaction] = []
+        self.account_nonces: dict[str, int] = {}
 
     def canonical_payload(self, transactions: list[Transaction]) -> bytes:
         payload_obj = [tx.to_dict() for tx in transactions]
@@ -43,17 +45,85 @@ class TriadicEngine:
             separators=(",", ":")
         ).encode("utf-8")
 
-    def validate_transactions(self, transactions: list[Transaction]) -> None:
+    def current_expected_nonce(self, sender: str) -> int:
+        return self.account_nonces.get(sender, 0)
+
+    def pending_expected_nonce(self, sender: str) -> int:
+        expected = self.current_expected_nonce(sender)
+        sender_pending = sorted(
+            [tx for tx in self.mempool if tx.sender == sender],
+            key=lambda tx: tx.nonce
+        )
+        for tx in sender_pending:
+            if tx.nonce == expected:
+                expected += 1
+            else:
+                break
+        return expected
+
+    def validate_transactions(self, transactions: list[Transaction], use_mempool_view: bool = False) -> None:
+        seen_sender_nonces = set()
+        expected_map: dict[str, int] = {}
+
         for tx in transactions:
             if tx.sender == "genesis" and tx.receiver == "system":
                 continue
             if tx.sender == "system" and tx.receiver == "system":
                 continue
+
             if not verify_transaction(tx):
                 raise ValueError("Invalid transaction signature detected.")
 
+            if tx.sender not in expected_map:
+                if use_mempool_view:
+                    expected_map[tx.sender] = self.pending_expected_nonce(tx.sender)
+                else:
+                    expected_map[tx.sender] = self.current_expected_nonce(tx.sender)
+
+            expected_nonce = expected_map[tx.sender]
+            key = (tx.sender, tx.nonce)
+
+            if key in seen_sender_nonces:
+                raise ValueError("Duplicate sender nonce in transaction set.")
+            seen_sender_nonces.add(key)
+
+            if tx.nonce != expected_nonce:
+                raise ValueError(
+                    f"Invalid nonce for sender {tx.sender}: got {tx.nonce}, expected {expected_nonce}."
+                )
+
+            expected_map[tx.sender] = expected_nonce + 1
+
+    def apply_transactions(self, transactions: list[Transaction]) -> None:
+        for tx in transactions:
+            if tx.sender == "genesis" and tx.receiver == "system":
+                continue
+            if tx.sender == "system" and tx.receiver == "system":
+                continue
+            self.account_nonces[tx.sender] = tx.nonce + 1
+
+    def submit_transaction(self, tx: Transaction) -> None:
+        self.validate_transactions([tx], use_mempool_view=True)
+        self.mempool.append(tx)
+
+    def build_block_from_mempool(self, max_transactions: int | None = None) -> Block:
+        if not self.chain:
+            self.create_genesis_block()
+
+        if not self.mempool:
+            return self.add_block()
+
+        if max_transactions is None:
+            selected = list(self.mempool)
+            self.mempool.clear()
+        else:
+            selected = self.mempool[:max_transactions]
+            self.mempool = self.mempool[max_transactions:]
+
+        return self._append_block(selected)
+
     def _append_block(self, transactions: list[Transaction]) -> Block:
-        self.validate_transactions(transactions)
+        self.validate_transactions(transactions, use_mempool_view=False)
         payload = self.canonical_payload(transactions)
 
         prev_hE = self.hE
@@ -84,6 +154,7 @@ class TriadicEngine:
             C=Cn
         )
         self.chain.append(block)
+        self.apply_transactions(transactions)
         return block
 
     def create_genesis_block(self) -> Block:
@@ -133,6 +204,7 @@ class TriadicEngine:
         hE = ZERO32
         hI = ZERO32
         hC = ZERO32
+        replay_nonces: dict[str, int] = {}
 
         for i, block in enumerate(self.chain):
             if i == 0:
@@ -151,10 +223,27 @@ class TriadicEngine:
             if block.previous_hC != expected_prev_hC:
                 return False
 
-            try:
-                self.validate_transactions(block.transactions)
-            except ValueError:
-                return False
+            seen_sender_nonces = set()
+            for tx in block.transactions:
+                if tx.sender == "genesis" and tx.receiver == "system":
+                    continue
+                if tx.sender == "system" and tx.receiver == "system":
+                    continue
+
+                if not verify_transaction(tx):
+                    return False
+
+                expected_nonce = replay_nonces.get(tx.sender, 0)
+                key = (tx.sender, tx.nonce)
+
+                if key in seen_sender_nonces:
+                    return False
+                seen_sender_nonces.add(key)
+
+                if tx.nonce != expected_nonce:
+                    return False
+
+                replay_nonces[tx.sender] = tx.nonce + 1
 
             payload = self.canonical_payload(block.transactions)
             hE, hI, hC = triadic_hash_cycle(hE, hI, hC, payload)
@@ -235,6 +324,8 @@ class TriadicEngine:
                     "valid": self.is_chain_valid(),
                     "healthy": self.is_healthy(),
                     "coherence_stats": self.coherence_stats(),
+                    "mempool_size": len(self.mempool),
+                    "account_nonces": self.account_nonces,
                     "chain": [b.to_dict() for b in self.chain]
                 },
                 f,

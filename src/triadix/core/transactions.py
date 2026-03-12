@@ -13,6 +13,7 @@ def transaction_signing_payload(tx: Transaction) -> bytes:
         "amount": tx.amount,
         "data": tx.data,
         "public_key": tx.public_key,
+        "nonce": tx.nonce,
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 

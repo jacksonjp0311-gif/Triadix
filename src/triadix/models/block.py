@@ -10,6 +10,7 @@ class Transaction:
     data: str = ""
     public_key: str = ""
     signature: str = ""
+    nonce: int = 0
 
     def to_dict(self) -> Dict:
         return asdict(self)
