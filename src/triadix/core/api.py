@@ -7,8 +7,8 @@ from .transactions import sign_transaction
 from ..models.block import Transaction
 
 
-app = FastAPI(title="Triadix API", version="2.2.0")
-NODE = TriadicNode("api-node")
+app = FastAPI(title="Triadix API", version="2.3.0")
+NODE = TriadicNode(label="api-node")
 
 
 class TransactionIn(BaseModel):
@@ -27,6 +27,8 @@ class ChainSyncIn(BaseModel):
 
 class PeerIn(BaseModel):
     peer_id: str
+    base_url: str = ""
+    label: str = ""
 
 
 class SeedDemoIn(BaseModel):
@@ -41,11 +43,16 @@ class LoadStateIn(BaseModel):
     filepath: str
 
 
+class IdentityIn(BaseModel):
+    label: str | None = None
+    base_url: str | None = None
+
+
 @app.get("/")
 def root():
     return {
         "project": "Triadix",
-        "version": "2.2.0",
+        "version": "2.3.0",
         "message": "Triadix API node active."
     }
 
@@ -53,6 +60,15 @@ def root():
 @app.get("/status")
 def status():
     return NODE.status_snapshot()
+
+
+@app.post("/identity")
+def set_identity(payload: IdentityIn):
+    NODE.set_identity_metadata(label=payload.label, base_url=payload.base_url)
+    return {
+        "updated": True,
+        "status": NODE.status_snapshot(),
+    }
 
 
 @app.get("/chain")
@@ -67,17 +83,17 @@ def get_chain():
 def get_peers():
     return {
         "peer_count": len(NODE.peers),
-        "peers": sorted(list(NODE.peers)),
+        "peers": NODE.list_peers(),
     }
 
 
 @app.post("/peers")
 def add_peer(peer_in: PeerIn):
-    NODE.add_peer(peer_in.peer_id)
+    NODE.add_peer(peer_in.peer_id, base_url=peer_in.base_url, label=peer_in.label)
     return {
         "registered": True,
         "peer_count": len(NODE.peers),
-        "peers": sorted(list(NODE.peers)),
+        "peers": NODE.list_peers(),
     }
 
 

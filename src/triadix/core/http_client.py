@@ -7,6 +7,16 @@ def get_status(base_url: str) -> dict:
     return response.json()
 
 
+def set_identity(base_url: str, label: str | None = None, base_url_value: str | None = None) -> dict:
+    response = requests.post(
+        f"{base_url}/identity",
+        json={"label": label, "base_url": base_url_value},
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def get_chain(base_url: str) -> dict:
     response = requests.get(f"{base_url}/chain", timeout=20)
     response.raise_for_status()
@@ -19,10 +29,10 @@ def list_peers(base_url: str) -> dict:
     return response.json()
 
 
-def register_peer(base_url: str, peer_id: str) -> dict:
+def register_peer(base_url: str, peer_id: str, peer_base_url: str = "", label: str = "") -> dict:
     response = requests.post(
         f"{base_url}/peers",
-        json={"peer_id": peer_id},
+        json={"peer_id": peer_id, "base_url": peer_base_url, "label": label},
         timeout=10,
     )
     response.raise_for_status()

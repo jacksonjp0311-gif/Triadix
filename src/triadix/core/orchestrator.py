@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from triadix.core.http_client import (
     get_status,
+    set_identity,
     get_chain,
     list_peers,
     register_peer,
@@ -95,11 +96,20 @@ def http_flow_snapshot(source_url: str, target_url: str) -> dict:
 
 
 def register_bidirectional_peers(node_a_url: str, node_b_url: str) -> dict:
-    a = register_peer(node_a_url, node_b_url)
-    b = register_peer(node_b_url, node_a_url)
+    a = register_peer(node_a_url, node_b_url, peer_base_url=node_b_url, label="peer-b")
+    b = register_peer(node_b_url, node_a_url, peer_base_url=node_a_url, label="peer-a")
     return {
         "node_a_peer_result": a,
         "node_b_peer_result": b,
+    }
+
+
+def set_node_identities(node_a_url: str, node_b_url: str) -> dict:
+    a = set_identity(node_a_url, label="node-a", base_url_value=node_a_url)
+    b = set_identity(node_b_url, label="node-b", base_url_value=node_b_url)
+    return {
+        "node_a_identity": a,
+        "node_b_identity": b,
     }
 
 
