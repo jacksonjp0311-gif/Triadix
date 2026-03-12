@@ -215,6 +215,8 @@ Triadix v2.4 adds periodic chain checkpoints, persisted checkpoint metadata, and
 
 Triadix v2.5 adds deterministic transaction IDs, receipt generation, receipt persistence, and API-level receipt lookup for clean transaction outcome proof.
 
+Triadix v2.6 adds deterministic mempool ordering, configurable transaction selection limits, and selection diagnostics for explainable block assembly.
+
 
 
 
