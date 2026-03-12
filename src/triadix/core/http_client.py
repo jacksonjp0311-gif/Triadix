@@ -69,3 +69,23 @@ def sync_chain(base_url: str, chain: list[dict]) -> dict:
     )
     response.raise_for_status()
     return response.json()
+
+
+def save_state(base_url: str, filepath: str | None = None) -> dict:
+    response = requests.post(
+        f"{base_url}/save-state",
+        json={"filepath": filepath},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def load_state(base_url: str, filepath: str) -> dict:
+    response = requests.post(
+        f"{base_url}/load-state",
+        json={"filepath": filepath},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()

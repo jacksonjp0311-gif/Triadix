@@ -7,7 +7,7 @@ from .transactions import sign_transaction
 from ..models.block import Transaction
 
 
-app = FastAPI(title="Triadix API", version="2.1.0")
+app = FastAPI(title="Triadix API", version="2.2.0")
 NODE = TriadicNode("api-node")
 
 
@@ -33,11 +33,19 @@ class SeedDemoIn(BaseModel):
     blocks: int = 12
 
 
+class SaveStateIn(BaseModel):
+    filepath: str | None = None
+
+
+class LoadStateIn(BaseModel):
+    filepath: str
+
+
 @app.get("/")
 def root():
     return {
         "project": "Triadix",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "message": "Triadix API node active."
     }
 
@@ -168,6 +176,32 @@ def sync_chain(payload: ChainSyncIn):
             "reason": result.reason,
             "local_length": result.local_length,
             "candidate_length": result.candidate_length,
+            "status": NODE.status_snapshot(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/save-state")
+def save_state(payload: SaveStateIn):
+    try:
+        path = NODE.engine.save_to_file(payload.filepath)
+        return {
+            "saved": True,
+            "filepath": path,
+            "status": NODE.status_snapshot(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/load-state")
+def load_state(payload: LoadStateIn):
+    try:
+        NODE.engine = NODE.engine.load_from_file(payload.filepath)
+        return {
+            "loaded": True,
+            "filepath": payload.filepath,
             "status": NODE.status_snapshot(),
         }
     except Exception as exc:

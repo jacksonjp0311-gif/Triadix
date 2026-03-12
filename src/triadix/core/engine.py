@@ -330,6 +330,65 @@ class TriadicEngine:
             "coherence_stats": self.coherence_stats(),
         }
 
+    def export_state(self) -> dict:
+        return {
+            "hE": self.hE.hex(),
+            "hI": self.hI.hex(),
+            "hC": self.hC.hex(),
+            "chain": [b.to_dict() for b in self.chain],
+            "mempool": [tx.to_dict() for tx in self.mempool],
+            "account_nonces": self.account_nonces,
+            "status": self.status_report(),
+        }
+
+    def save_to_file(self, filepath: str | None = None) -> str:
+        target = filepath or self.config.state_file
+        path = Path(target)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.export_state(), f, indent=2)
+
+        return str(path)
+
+    @classmethod
+    def load_from_file(cls, filepath: str) -> "TriadicEngine":
+        path = Path(filepath)
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        engine = cls()
+        engine.chain = []
+        engine.mempool = [Transaction(**tx) for tx in data.get("mempool", [])]
+        engine.account_nonces = {
+            str(k): int(v) for k, v in data.get("account_nonces", {}).items()
+        }
+
+        for block_data in data.get("chain", []):
+            txs = [Transaction(**tx) for tx in block_data["transactions"]]
+            block = Block(
+                index=block_data["index"],
+                previous_hE=block_data["previous"]["hE"],
+                previous_hI=block_data["previous"]["hI"],
+                previous_hC=block_data["previous"]["hC"],
+                transactions=txs,
+                timestamp=block_data["timestamp"],
+                hE=block_data["hE"],
+                hI=block_data["hI"],
+                hC=block_data["hC"],
+                E=block_data["metrics"]["E"],
+                I=block_data["metrics"]["I"],
+                dphi=block_data["metrics"]["dphi"],
+                C=block_data["metrics"]["C"],
+            )
+            engine.chain.append(block)
+
+        engine.hE = bytes.fromhex(data["hE"]) if data.get("hE") else ZERO32
+        engine.hI = bytes.fromhex(data["hI"]) if data.get("hI") else ZERO32
+        engine.hC = bytes.fromhex(data["hC"]) if data.get("hC") else ZERO32
+
+        return engine
+
     def save_state(self) -> None:
         state_dir = Path(self.config.run_root) / "state"
         state_dir.mkdir(parents=True, exist_ok=True)

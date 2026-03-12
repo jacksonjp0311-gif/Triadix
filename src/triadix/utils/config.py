@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     health_mode: str = "p25"
     health_min_fraction: float = 0.95
     min_health_blocks: int = 12
+    state_file: str = str(Path.cwd() / "triadix-run" / "state" / "node_state.json")
 
     model_config = SettingsConfigDict(
         env_prefix="TRIADIX_",

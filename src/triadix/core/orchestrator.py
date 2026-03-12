@@ -10,6 +10,8 @@ from triadix.core.http_client import (
     submit_and_build,
     seed_demo,
     sync_chain,
+    save_state,
+    load_state,
 )
 from triadix.core.wallet import generate_wallet
 from triadix.core.transactions import sign_transaction
@@ -103,3 +105,11 @@ def register_bidirectional_peers(node_a_url: str, node_b_url: str) -> dict:
 
 def seed_demo_chain(base_url: str, blocks: int = 12) -> dict:
     return seed_demo(base_url, blocks=blocks)
+
+
+def persist_node_state(base_url: str, filepath: str | None = None) -> dict:
+    return save_state(base_url, filepath)
+
+
+def restore_node_state(base_url: str, filepath: str) -> dict:
+    return load_state(base_url, filepath)
