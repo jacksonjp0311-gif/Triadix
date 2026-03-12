@@ -213,6 +213,8 @@ Triadix v2.3 adds stable node identity, peer metadata records, enriched node sna
 
 Triadix v2.4 adds periodic chain checkpoints, persisted checkpoint metadata, and checkpoint-verified sync for safer chain import and adoption.
 
+Triadix v2.5 adds deterministic transaction IDs, receipt generation, receipt persistence, and API-level receipt lookup for clean transaction outcome proof.
+
 
 
 
