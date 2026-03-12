@@ -196,3 +196,5 @@ Triadix v1.3 introduces signed transaction support with wallet key generation, c
 Triadix v1.4 adds a mempool, sender nonce tracking, replay rejection, block assembly from pending transactions, and an end-to-end mempool demo with valid and healthy execution.
 
 Triadix v1.5 introduces multi-node chain sync, deterministic valid-chain adoption, and signed-transaction chain transfer between nodes.
+
+Triadix v1.7 introduces a minimal transport-layer scaffold with node status, chain export/sync flow, signed transaction transport semantics, and passing transport-level tests.
