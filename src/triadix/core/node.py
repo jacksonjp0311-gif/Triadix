@@ -54,12 +54,10 @@ class TriadicNode:
         return self.try_sync_from_chain_data(peer.export_chain())
 
     def status_snapshot(self) -> dict:
+        report = self.engine.status_report()
         return {
             "node_id": self.node_id,
             "policy": getattr(self.policy, "name", self.policy.__class__.__name__),
-            "chain_length": len(self.engine.chain),
-            "valid": self.engine.is_chain_valid(),
-            "healthy": self.engine.is_healthy(),
-            "mempool_size": len(self.engine.mempool),
             "peer_count": len(self.peers),
+            **report,
         }

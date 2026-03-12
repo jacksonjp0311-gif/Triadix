@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     tau: float = 0.244
     health_mode: str = "p25"
     health_min_fraction: float = 0.95
+    min_health_blocks: int = 12
 
     model_config = SettingsConfigDict(
         env_prefix="TRIADIX_",

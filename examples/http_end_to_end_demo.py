@@ -1,7 +1,8 @@
 from triadix.core.orchestrator import (
-    seed_node_with_signed_transaction,
-    sync_node_from_peer_url,
     http_flow_snapshot,
+    register_bidirectional_peers,
+    seed_demo_chain,
+    sync_node_from_peer_url,
 )
 
 
@@ -9,10 +10,7 @@ def main():
     node_a = "http://127.0.0.1:8001"
     node_b = "http://127.0.0.1:8002"
 
-    print("Triadix HTTP end-to-end demo")
-    print("Expected running nodes:")
-    print("  node A -> 127.0.0.1:8001")
-    print("  node B -> 127.0.0.1:8002")
+    print("Triadix v2.1 HTTP demo")
     print("")
 
     before = http_flow_snapshot(node_a, node_b)
@@ -20,20 +18,18 @@ def main():
     print(before)
     print("")
 
-    seed_result = seed_node_with_signed_transaction(
-        node_a,
-        sender="alice",
-        receiver="bob",
-        amount=11.0,
-        data="v1.9-http-demo",
-        nonce=0,
-    )
-    print("Seed result:")
+    peer_result = register_bidirectional_peers(node_a, node_b)
+    print("Peer registration:")
+    print(peer_result)
+    print("")
+
+    seed_result = seed_demo_chain(node_a, blocks=12)
+    print("Seed demo chain on node A:")
     print(seed_result)
     print("")
 
     sync_result = sync_node_from_peer_url(node_a, node_b)
-    print("Sync result:")
+    print("Sync node B from node A:")
     print(sync_result)
     print("")
 

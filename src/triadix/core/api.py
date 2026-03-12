@@ -2,10 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .node import TriadicNode
+from .wallet import generate_wallet
+from .transactions import sign_transaction
 from ..models.block import Transaction
 
 
-app = FastAPI(title="Triadix API", version="1.7.0")
+app = FastAPI(title="Triadix API", version="2.1.0")
 NODE = TriadicNode("api-node")
 
 
@@ -23,12 +25,20 @@ class ChainSyncIn(BaseModel):
     chain: list[dict]
 
 
+class PeerIn(BaseModel):
+    peer_id: str
+
+
+class SeedDemoIn(BaseModel):
+    blocks: int = 12
+
+
 @app.get("/")
 def root():
     return {
         "project": "Triadix",
-        "version": "1.7.0",
-        "message": "Minimal network transport layer active."
+        "version": "2.1.0",
+        "message": "Triadix API node active."
     }
 
 
@@ -42,6 +52,24 @@ def get_chain():
     return {
         "length": len(NODE.engine.chain),
         "chain": NODE.export_chain(),
+    }
+
+
+@app.get("/peers")
+def get_peers():
+    return {
+        "peer_count": len(NODE.peers),
+        "peers": sorted(list(NODE.peers)),
+    }
+
+
+@app.post("/peers")
+def add_peer(peer_in: PeerIn):
+    NODE.add_peer(peer_in.peer_id)
+    return {
+        "registered": True,
+        "peer_count": len(NODE.peers),
+        "peers": sorted(list(NODE.peers)),
     }
 
 
@@ -72,6 +100,60 @@ def build_from_mempool():
             "chain_length": len(NODE.engine.chain),
             "mempool_size": len(NODE.engine.mempool),
             "valid": NODE.engine.is_chain_valid(),
+            "status": NODE.status_snapshot(),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/submit-and-build")
+def submit_and_build(tx_in: TransactionIn):
+    tx = Transaction(**tx_in.model_dump())
+    try:
+        if not NODE.engine.chain:
+            NODE.engine.create_genesis_block()
+        NODE.engine.submit_transaction(tx)
+        block = NODE.engine.build_block_from_mempool()
+        return {
+            "accepted": True,
+            "built": True,
+            "block_index": block.index,
+            "chain_length": len(NODE.engine.chain),
+            "valid": NODE.engine.is_chain_valid(),
+            "status": NODE.status_snapshot(),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/seed-demo")
+def seed_demo(payload: SeedDemoIn):
+    try:
+        if not NODE.engine.chain:
+            NODE.engine.create_genesis_block()
+
+        private_key, public_key = generate_wallet()
+
+        tx = Transaction(
+            sender="demo-alice",
+            receiver="demo-bob",
+            amount=12.0,
+            data="seed-demo-payment",
+            public_key=public_key,
+            nonce=NODE.engine.current_expected_nonce("demo-alice"),
+        )
+        sign_transaction(tx, private_key)
+
+        NODE.engine.submit_transaction(tx)
+        NODE.engine.build_block_from_mempool()
+
+        while len(NODE.engine.chain) < payload.blocks:
+            NODE.engine.add_block()
+
+        return {
+            "seeded": True,
+            "chain_length": len(NODE.engine.chain),
+            "status": NODE.status_snapshot(),
         }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

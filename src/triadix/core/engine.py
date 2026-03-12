@@ -290,6 +290,9 @@ class TriadicEngine:
             "fraction_ge_tau": frac_ge_tau,
         }
 
+    def is_health_evaluable(self) -> bool:
+        return len(self.chain) >= self.config.min_health_blocks
+
     def is_healthy(self) -> bool:
         stats = self.coherence_stats()
         if not stats:
@@ -310,22 +313,30 @@ class TriadicEngine:
 
         return stats["p05"] >= self.config.tau
 
+    def status_report(self) -> dict:
+        health_evaluable = self.is_health_evaluable()
+        return {
+            "chain_length": len(self.chain),
+            "valid": self.is_chain_valid(),
+            "healthy": self.is_healthy() if health_evaluable else None,
+            "health_evaluable": health_evaluable,
+            "health_note": None if health_evaluable else (
+                f"Health policy is calibrated for chains with at least {self.config.min_health_blocks} blocks."
+            ),
+            "tau": self.config.tau,
+            "health_mode": self.config.health_mode,
+            "mempool_size": len(self.mempool),
+            "account_nonces": self.account_nonces,
+            "coherence_stats": self.coherence_stats(),
+        }
+
     def save_state(self) -> None:
         state_dir = Path(self.config.run_root) / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
 
         with open(state_dir / "ledger_state.json", "w", encoding="utf-8") as f:
             json.dump(
-                {
-                    "blocks": len(self.chain),
-                    "tau": self.config.tau,
-                    "health_mode": self.config.health_mode,
-                    "health_min_fraction": self.config.health_min_fraction,
-                    "valid": self.is_chain_valid(),
-                    "healthy": self.is_healthy(),
-                    "coherence_stats": self.coherence_stats(),
-                    "mempool_size": len(self.mempool),
-                    "account_nonces": self.account_nonces,
+                self.status_report() | {
                     "chain": [b.to_dict() for b in self.chain]
                 },
                 f,
