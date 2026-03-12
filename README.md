@@ -194,3 +194,5 @@ python .\benchmarks\ultra_nuclear_test.py
 Triadix v1.3 introduces signed transaction support with wallet key generation, cryptographic verification, tamper rejection, enforced admission rules, and a working end-to-end signed transaction demo.
 
 Triadix v1.4 adds a mempool, sender nonce tracking, replay rejection, block assembly from pending transactions, and an end-to-end mempool demo with valid and healthy execution.
+
+Triadix v1.5 introduces multi-node chain sync, deterministic valid-chain adoption, and signed-transaction chain transfer between nodes.
