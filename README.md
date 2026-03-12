@@ -202,3 +202,5 @@ Triadix v1.7 introduces a minimal transport-layer scaffold with node status, cha
 Triadix v1.8 introduces a runnable API-node layer with FastAPI transport, HTTP client helpers, local multi-port launch scripts, and passing transport-level tests.
 
 Triadix v1.9 completes the first end-to-end local HTTP flow: signed transaction submission, block build, chain fetch, and valid-chain adoption between API nodes.
+
+Triadix v2.0 consolidates the stack with unified status reporting, health evaluability rules, cleaner API/node snapshots, and aligned demo semantics across local HTTP transport.
