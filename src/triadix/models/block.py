@@ -8,6 +8,8 @@ class Transaction:
     receiver: str
     amount: float
     data: str = ""
+    public_key: str = ""
+    signature: str = ""
 
     def to_dict(self) -> Dict:
         return asdict(self)

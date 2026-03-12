@@ -8,6 +8,7 @@ from ..utils.config import get_config
 from ..visualization.plots import generate_plots
 from .hashes import triadic_hash_cycle
 from .metrics import compute_coherence_metrics
+from .transactions import verify_transaction
 
 ZERO32 = b"\x00" * 32
 
@@ -42,7 +43,17 @@ class TriadicEngine:
             separators=(",", ":")
         ).encode("utf-8")
 
+    def validate_transactions(self, transactions: list[Transaction]) -> None:
+        for tx in transactions:
+            if tx.sender == "genesis" and tx.receiver == "system":
+                continue
+            if tx.sender == "system" and tx.receiver == "system":
+                continue
+            if not verify_transaction(tx):
+                raise ValueError("Invalid transaction signature detected.")
+
     def _append_block(self, transactions: list[Transaction]) -> Block:
+        self.validate_transactions(transactions)
         payload = self.canonical_payload(transactions)
 
         prev_hE = self.hE
@@ -140,6 +151,11 @@ class TriadicEngine:
             if block.previous_hC != expected_prev_hC:
                 return False
 
+            try:
+                self.validate_transactions(block.transactions)
+            except ValueError:
+                return False
+
             payload = self.canonical_payload(block.transactions)
             hE, hI, hC = triadic_hash_cycle(hE, hI, hC, payload)
 
@@ -203,7 +219,6 @@ class TriadicEngine:
         if mode == "p95":
             return stats["p95"] >= self.config.tau
 
-        # default p05
         return stats["p05"] >= self.config.tau
 
     def save_state(self) -> None:
