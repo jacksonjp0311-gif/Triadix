@@ -208,3 +208,5 @@ Triadix v2.0 consolidates the stack with unified status reporting, health evalua
 Triadix v2.1 extends the HTTP node layer with peer registration, demo-chain seeding, submit-and-build flow, and a cleaner local orchestration path for multi-node testing.
 
 Triadix v2.2 adds durable node persistence with save/load support for chain state, mempool state, account nonces, and API-level recovery flow.
+
+Triadix v2.3 adds stable node identity, peer metadata records, enriched node snapshots, and a cleaner trust surface for multi-node coordination.
