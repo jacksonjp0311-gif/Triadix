@@ -206,3 +206,5 @@ Triadix v1.9 completes the first end-to-end local HTTP flow: signed transaction 
 Triadix v2.0 consolidates the stack with unified status reporting, health evaluability rules, cleaner API/node snapshots, and aligned demo semantics across local HTTP transport.
 
 Triadix v2.1 extends the HTTP node layer with peer registration, demo-chain seeding, submit-and-build flow, and a cleaner local orchestration path for multi-node testing.
+
+Triadix v2.2 adds durable node persistence with save/load support for chain state, mempool state, account nonces, and API-level recovery flow.
