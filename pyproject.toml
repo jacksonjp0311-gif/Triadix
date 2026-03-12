@@ -1,0 +1,36 @@
+[project]
+name = "triadix"
+version = "1.2.0"
+description = "Coherence-native triadic ledger kernel for provenance, validation, and drift observability"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "James Paul Jackson" }]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.0",
+    "matplotlib>=3.8",
+    "pydantic-settings>=2.0",
+    "click>=8.1"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0"
+]
+
+[project.scripts]
+triadix = "triadix.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

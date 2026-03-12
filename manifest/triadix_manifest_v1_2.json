@@ -1,0 +1,28 @@
+﻿{
+    "project":  "Triadix",
+    "version":  "1.2.0",
+    "tagline":  "Three hashes. One truth. Zero blind spots.",
+    "scope":  [
+                  "triadic state cycle",
+                  "deterministic payload serialization",
+                  "explicit genesis",
+                  "recomputation validation",
+                  "coherence metrics",
+                  "cli run/validate",
+                  "plots and state output"
+              ],
+    "not_yet":  [
+                    "distributed consensus",
+                    "staking",
+                    "smart contracts",
+                    "l1/l2 network"
+                ],
+    "calibrated_tau":  0.244,
+    "coherence_band":  {
+                           "max_observed":  0.265487,
+                           "tau_strict":  0.249,
+                           "min_observed":  0.226067,
+                           "tau_lenient":  0.237,
+                           "tau_balanced":  0.244
+                       }
+}

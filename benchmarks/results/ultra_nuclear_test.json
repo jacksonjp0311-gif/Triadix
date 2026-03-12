@@ -1,0 +1,25 @@
+{
+  "test_name": "triadix_ultra_nuclear_test",
+  "version": "1.2.0",
+  "blocks": 100000,
+  "elapsed_seconds": 29.049925099941902,
+  "blocks_per_second": 3442.349667201035,
+  "valid": true,
+  "healthy": true,
+  "tau": 0.244,
+  "health_mode": "p25",
+  "health_min_fraction": 0.95,
+  "coherence": {
+    "min": 0.2098177070379684,
+    "max": 0.273224043715847,
+    "mean": 0.24831469169748635,
+    "p05": 0.23697472269624575,
+    "p25": 0.24403988376430116,
+    "p50": 0.2485746557659208,
+    "p75": 0.2529279772329247,
+    "p95": 0.25850785340314136,
+    "final": 0.2492487980769231,
+    "count_ge_tau": 75117,
+    "fraction_ge_tau": 0.75117
+  }
+}
