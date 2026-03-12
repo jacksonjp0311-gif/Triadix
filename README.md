@@ -190,3 +190,5 @@ triadix run --blocks 96
 Run the ultra benchmark
 
 python .\benchmarks\ultra_nuclear_test.py
+
+Triadix v1.3 introduces signed transaction support with wallet key generation, cryptographic verification, tamper rejection, enforced admission rules, and a working end-to-end signed transaction demo.
