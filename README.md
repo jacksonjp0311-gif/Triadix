@@ -204,3 +204,5 @@ Triadix v1.8 introduces a runnable API-node layer with FastAPI transport, HTTP c
 Triadix v1.9 completes the first end-to-end local HTTP flow: signed transaction submission, block build, chain fetch, and valid-chain adoption between API nodes.
 
 Triadix v2.0 consolidates the stack with unified status reporting, health evaluability rules, cleaner API/node snapshots, and aligned demo semantics across local HTTP transport.
+
+Triadix v2.1 extends the HTTP node layer with peer registration, demo-chain seeding, submit-and-build flow, and a cleaner local orchestration path for multi-node testing.
