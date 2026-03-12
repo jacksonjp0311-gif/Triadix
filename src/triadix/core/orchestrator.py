@@ -83,7 +83,11 @@ def submit_and_build_signed_transaction(
 
 def sync_node_from_peer_url(source_url: str, target_url: str) -> dict:
     chain_payload = get_chain(source_url)
-    return sync_chain(target_url, chain_payload["chain"])
+    return sync_chain(
+        target_url,
+        chain_payload["chain"],
+        checkpoints=chain_payload.get("checkpoints"),
+    )
 
 
 def http_flow_snapshot(source_url: str, target_url: str) -> dict:

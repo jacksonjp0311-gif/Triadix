@@ -200,6 +200,23 @@ class TriadicEngine:
         generate_plots(self.chain, self.config.run_root)
         return self.chain
 
+    def checkpoint_map(self) -> dict[str, str]:
+        interval = max(1, int(self.config.checkpoint_interval))
+        checkpoints: dict[str, str] = {}
+
+        for block in self.chain:
+            if block.index == 0 or block.index % interval == 0 or block.index == len(self.chain) - 1:
+                checkpoints[str(block.index)] = block.hC
+
+        return checkpoints
+
+    def verify_checkpoint_map(self, checkpoint_map: dict[str, str]) -> bool:
+        local = self.checkpoint_map()
+        for idx, digest in checkpoint_map.items():
+            if idx in local and local[idx] != digest:
+                return False
+        return True
+
     def is_chain_valid(self, tolerance: float = 1e-12) -> bool:
         hE = ZERO32
         hI = ZERO32
@@ -327,6 +344,8 @@ class TriadicEngine:
             "health_mode": self.config.health_mode,
             "mempool_size": len(self.mempool),
             "account_nonces": self.account_nonces,
+            "checkpoint_interval": self.config.checkpoint_interval,
+            "checkpoints": self.checkpoint_map(),
             "coherence_stats": self.coherence_stats(),
         }
 
@@ -338,6 +357,7 @@ class TriadicEngine:
             "chain": [b.to_dict() for b in self.chain],
             "mempool": [tx.to_dict() for tx in self.mempool],
             "account_nonces": self.account_nonces,
+            "checkpoints": self.checkpoint_map(),
             "status": self.status_report(),
         }
 

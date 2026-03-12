@@ -71,10 +71,10 @@ def seed_demo(base_url: str, blocks: int = 12) -> dict:
     return response.json()
 
 
-def sync_chain(base_url: str, chain: list[dict]) -> dict:
+def sync_chain(base_url: str, chain: list[dict], checkpoints: dict[str, str] | None = None) -> dict:
     response = requests.post(
         f"{base_url}/sync",
-        json={"chain": chain},
+        json={"chain": chain, "checkpoints": checkpoints},
         timeout=30,
     )
     response.raise_for_status()

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import time
 import uuid
+from pathlib import Path
 
 from ..models.block import Transaction
 from ..models.node import NodeIdentity, PeerRecord
@@ -55,6 +57,15 @@ class TriadicNode:
             "engine": self.engine.export_state(),
         }
 
+    def save_node_state(self, filepath: str) -> str:
+        path = Path(filepath)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.export_node_state(), f, indent=2)
+
+        return str(path)
+
     def load_node_state(self, data: dict) -> None:
         identity = data.get("identity", {})
         self.identity = NodeIdentity(
@@ -73,6 +84,25 @@ class TriadicNode:
                 added_at=peer.get("added_at", 0.0),
             )
             self.peers[record.peer_id] = record
+
+        engine_state = data.get("engine")
+        if engine_state:
+            temp_path = Path(self.engine.config.run_root) / "state" / "_node_import_tmp.json"
+            temp_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(engine_state, f, indent=2)
+            self.engine = TriadicEngine.load_from_file(str(temp_path))
+            temp_path.unlink(missing_ok=True)
+
+    @classmethod
+    def load_node_from_file(cls, filepath: str) -> "TriadicNode":
+        path = Path(filepath)
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        node = cls()
+        node.load_node_state(data)
+        return node
 
     def rebuild_engine_from_chain_data(self, chain_data: list[dict]) -> TriadicEngine:
         rebuilt = TriadicEngine()
@@ -97,9 +127,14 @@ class TriadicNode:
 
         return rebuilt
 
-    def try_sync_from_chain_data(self, chain_data: list[dict]) -> SyncResult:
+    def try_sync_from_chain_data(self, chain_data: list[dict], checkpoint_map: dict[str, str] | None = None) -> SyncResult:
         candidate = self.rebuild_engine_from_chain_data(chain_data)
-        result = self.policy.choose(self.engine, candidate)
+        checkpoint_ok = True
+
+        if checkpoint_map is not None:
+            checkpoint_ok = candidate.verify_checkpoint_map(checkpoint_map)
+
+        result = self.policy.choose(self.engine, candidate, checkpoint_verified=checkpoint_ok)
 
         if result.adopted:
             self.engine = candidate
@@ -107,7 +142,10 @@ class TriadicNode:
         return result
 
     def sync_from_peer(self, peer: "TriadicNode") -> SyncResult:
-        return self.try_sync_from_chain_data(peer.export_chain())
+        return self.try_sync_from_chain_data(
+            peer.export_chain(),
+            checkpoint_map=peer.engine.checkpoint_map(),
+        )
 
     def status_snapshot(self) -> dict:
         report = self.engine.status_report()

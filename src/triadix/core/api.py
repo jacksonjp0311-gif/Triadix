@@ -7,7 +7,7 @@ from .transactions import sign_transaction
 from ..models.block import Transaction
 
 
-app = FastAPI(title="Triadix API", version="2.3.0")
+app = FastAPI(title="Triadix API", version="2.4.0")
 NODE = TriadicNode(label="api-node")
 
 
@@ -23,6 +23,7 @@ class TransactionIn(BaseModel):
 
 class ChainSyncIn(BaseModel):
     chain: list[dict]
+    checkpoints: dict[str, str] | None = None
 
 
 class PeerIn(BaseModel):
@@ -52,7 +53,7 @@ class IdentityIn(BaseModel):
 def root():
     return {
         "project": "Triadix",
-        "version": "2.3.0",
+        "version": "2.4.0",
         "message": "Triadix API node active."
     }
 
@@ -62,20 +63,12 @@ def status():
     return NODE.status_snapshot()
 
 
-@app.post("/identity")
-def set_identity(payload: IdentityIn):
-    NODE.set_identity_metadata(label=payload.label, base_url=payload.base_url)
-    return {
-        "updated": True,
-        "status": NODE.status_snapshot(),
-    }
-
-
 @app.get("/chain")
 def get_chain():
     return {
         "length": len(NODE.engine.chain),
         "chain": NODE.export_chain(),
+        "checkpoints": NODE.engine.checkpoint_map(),
     }
 
 
@@ -84,6 +77,15 @@ def get_peers():
     return {
         "peer_count": len(NODE.peers),
         "peers": NODE.list_peers(),
+    }
+
+
+@app.post("/identity")
+def set_identity(payload: IdentityIn):
+    NODE.set_identity_metadata(label=payload.label, base_url=payload.base_url)
+    return {
+        "updated": True,
+        "status": NODE.status_snapshot(),
     }
 
 
@@ -186,12 +188,13 @@ def seed_demo(payload: SeedDemoIn):
 @app.post("/sync")
 def sync_chain(payload: ChainSyncIn):
     try:
-        result = NODE.try_sync_from_chain_data(payload.chain)
+        result = NODE.try_sync_from_chain_data(payload.chain, checkpoint_map=payload.checkpoints)
         return {
             "adopted": result.adopted,
             "reason": result.reason,
             "local_length": result.local_length,
             "candidate_length": result.candidate_length,
+            "checkpoint_verified": result.checkpoint_verified,
             "status": NODE.status_snapshot(),
         }
     except Exception as exc:
