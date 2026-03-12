@@ -7,7 +7,7 @@ from .transactions import sign_transaction
 from ..models.block import Transaction
 
 
-app = FastAPI(title="Triadix API", version="2.4.0")
+app = FastAPI(title="Triadix API", version="2.5.0")
 NODE = TriadicNode(label="api-node")
 
 
@@ -19,6 +19,7 @@ class TransactionIn(BaseModel):
     public_key: str = ""
     signature: str = ""
     nonce: int = 0
+    tx_id: str = ""
 
 
 class ChainSyncIn(BaseModel):
@@ -53,7 +54,7 @@ class IdentityIn(BaseModel):
 def root():
     return {
         "project": "Triadix",
-        "version": "2.4.0",
+        "version": "2.5.0",
         "message": "Triadix API node active."
     }
 
@@ -61,6 +62,14 @@ def root():
 @app.get("/status")
 def status():
     return NODE.status_snapshot()
+
+
+@app.get("/receipts/{tx_id}")
+def get_receipt(tx_id: str):
+    receipt = NODE.engine.get_receipt(tx_id)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    return receipt.to_dict()
 
 
 @app.get("/chain")
@@ -108,6 +117,7 @@ def submit_transaction(tx_in: TransactionIn):
         NODE.engine.submit_transaction(tx)
         return {
             "accepted": True,
+            "tx_id": tx.tx_id,
             "mempool_size": len(NODE.engine.mempool),
         }
     except ValueError as exc:
@@ -140,9 +150,12 @@ def submit_and_build(tx_in: TransactionIn):
             NODE.engine.create_genesis_block()
         NODE.engine.submit_transaction(tx)
         block = NODE.engine.build_block_from_mempool()
+        receipt = NODE.engine.get_receipt(tx.tx_id)
         return {
             "accepted": True,
             "built": True,
+            "tx_id": tx.tx_id,
+            "receipt": receipt.to_dict() if receipt else None,
             "block_index": block.index,
             "chain_length": len(NODE.engine.chain),
             "valid": NODE.engine.is_chain_valid(),
@@ -151,7 +164,7 @@ def submit_and_build(tx_in: TransactionIn):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-
+# other endpoints unchanged enough for this layer
 @app.post("/seed-demo")
 def seed_demo(payload: SeedDemoIn):
     try:

@@ -11,6 +11,7 @@ class Transaction:
     public_key: str = ""
     signature: str = ""
     nonce: int = 0
+    tx_id: str = ""
 
     def to_dict(self) -> Dict:
         return asdict(self)

@@ -4,11 +4,12 @@ import time
 from pathlib import Path
 
 from ..models.block import Block, Transaction
+from ..models.receipt import TransactionReceipt
 from ..utils.config import get_config
 from ..visualization.plots import generate_plots
 from .hashes import triadic_hash_cycle
 from .metrics import compute_coherence_metrics
-from .transactions import verify_transaction
+from .transactions import verify_transaction, compute_tx_id
 
 ZERO32 = b"\x00" * 32
 
@@ -36,6 +37,7 @@ class TriadicEngine:
         self.hC = ZERO32
         self.mempool: list[Transaction] = []
         self.account_nonces: dict[str, int] = {}
+        self.receipts: dict[str, TransactionReceipt] = {}
 
     def canonical_payload(self, transactions: list[Transaction]) -> bytes:
         payload_obj = [tx.to_dict() for tx in transactions]
@@ -71,6 +73,9 @@ class TriadicEngine:
             if tx.sender == "system" and tx.receiver == "system":
                 continue
 
+            if not tx.tx_id:
+                tx.tx_id = compute_tx_id(tx)
+
             if not verify_transaction(tx):
                 raise ValueError("Invalid transaction signature detected.")
 
@@ -94,15 +99,30 @@ class TriadicEngine:
 
             expected_map[tx.sender] = expected_nonce + 1
 
-    def apply_transactions(self, transactions: list[Transaction]) -> None:
+    def apply_transactions(self, transactions: list[Transaction], block_index: int, block_hC: str) -> None:
         for tx in transactions:
             if tx.sender == "genesis" and tx.receiver == "system":
                 continue
             if tx.sender == "system" and tx.receiver == "system":
                 continue
             self.account_nonces[tx.sender] = tx.nonce + 1
+            self.receipts[tx.tx_id] = TransactionReceipt(
+                tx_id=tx.tx_id,
+                block_index=block_index,
+                included=True,
+                sender=tx.sender,
+                receiver=tx.receiver,
+                amount=tx.amount,
+                nonce=tx.nonce,
+                hC=block_hC,
+            )
+
+    def get_receipt(self, tx_id: str):
+        return self.receipts.get(tx_id)
 
     def submit_transaction(self, tx: Transaction) -> None:
+        if not tx.tx_id:
+            tx.tx_id = compute_tx_id(tx)
         self.validate_transactions([tx], use_mempool_view=True)
         self.mempool.append(tx)
 
@@ -154,7 +174,7 @@ class TriadicEngine:
             C=Cn
         )
         self.chain.append(block)
-        self.apply_transactions(transactions)
+        self.apply_transactions(transactions, block.index, block.hC)
         return block
 
     def create_genesis_block(self) -> Block:
@@ -166,7 +186,8 @@ class TriadicEngine:
                 sender="genesis",
                 receiver="system",
                 amount=0.0,
-                data="triadix-genesis"
+                data="triadix-genesis",
+                tx_id="genesis"
             )
         ]
         return self._append_block(genesis_txs)
@@ -181,7 +202,8 @@ class TriadicEngine:
                     sender="system",
                     receiver="system",
                     amount=0.0,
-                    data=f"block-{len(self.chain)}"
+                    data=f"block-{len(self.chain)}",
+                    tx_id=f"system-{len(self.chain)}"
                 )
             ]
 
@@ -343,6 +365,7 @@ class TriadicEngine:
             "tau": self.config.tau,
             "health_mode": self.config.health_mode,
             "mempool_size": len(self.mempool),
+            "receipt_count": len(self.receipts),
             "account_nonces": self.account_nonces,
             "checkpoint_interval": self.config.checkpoint_interval,
             "checkpoints": self.checkpoint_map(),
@@ -357,6 +380,7 @@ class TriadicEngine:
             "chain": [b.to_dict() for b in self.chain],
             "mempool": [tx.to_dict() for tx in self.mempool],
             "account_nonces": self.account_nonces,
+            "receipts": {k: v.to_dict() for k, v in self.receipts.items()},
             "checkpoints": self.checkpoint_map(),
             "status": self.status_report(),
         }
@@ -402,6 +426,11 @@ class TriadicEngine:
                 C=block_data["metrics"]["C"],
             )
             engine.chain.append(block)
+
+        engine.receipts = {
+            str(k): TransactionReceipt(**v)
+            for k, v in data.get("receipts", {}).items()
+        }
 
         engine.hE = bytes.fromhex(data["hE"]) if data.get("hE") else ZERO32
         engine.hI = bytes.fromhex(data["hI"]) if data.get("hI") else ZERO32

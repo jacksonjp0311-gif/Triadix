@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from triadix.core.http_client import (
     get_status,
+    get_receipt,
     set_identity,
     get_chain,
     list_peers,
@@ -40,29 +41,6 @@ def build_signed_transaction_payload(
     return tx.to_dict()
 
 
-def seed_node_with_signed_transaction(
-    base_url: str,
-    sender: str = "alice",
-    receiver: str = "bob",
-    amount: float = 10.0,
-    data: str = "http-seeded-payment",
-    nonce: int = 0,
-) -> dict:
-    tx_payload = build_signed_transaction_payload(
-        sender=sender,
-        receiver=receiver,
-        amount=amount,
-        data=data,
-        nonce=nonce,
-    )
-    submit_result = submit_transaction(base_url, tx_payload)
-    build_result = build_from_mempool(base_url)
-    return {
-        "submit_result": submit_result,
-        "build_result": build_result,
-    }
-
-
 def submit_and_build_signed_transaction(
     base_url: str,
     sender: str = "alice",
@@ -79,51 +57,3 @@ def submit_and_build_signed_transaction(
         nonce=nonce,
     )
     return submit_and_build(base_url, tx_payload)
-
-
-def sync_node_from_peer_url(source_url: str, target_url: str) -> dict:
-    chain_payload = get_chain(source_url)
-    return sync_chain(
-        target_url,
-        chain_payload["chain"],
-        checkpoints=chain_payload.get("checkpoints"),
-    )
-
-
-def http_flow_snapshot(source_url: str, target_url: str) -> dict:
-    return {
-        "source_status": get_status(source_url),
-        "target_status": get_status(target_url),
-        "source_peers": list_peers(source_url),
-        "target_peers": list_peers(target_url),
-    }
-
-
-def register_bidirectional_peers(node_a_url: str, node_b_url: str) -> dict:
-    a = register_peer(node_a_url, node_b_url, peer_base_url=node_b_url, label="peer-b")
-    b = register_peer(node_b_url, node_a_url, peer_base_url=node_a_url, label="peer-a")
-    return {
-        "node_a_peer_result": a,
-        "node_b_peer_result": b,
-    }
-
-
-def set_node_identities(node_a_url: str, node_b_url: str) -> dict:
-    a = set_identity(node_a_url, label="node-a", base_url_value=node_a_url)
-    b = set_identity(node_b_url, label="node-b", base_url_value=node_b_url)
-    return {
-        "node_a_identity": a,
-        "node_b_identity": b,
-    }
-
-
-def seed_demo_chain(base_url: str, blocks: int = 12) -> dict:
-    return seed_demo(base_url, blocks=blocks)
-
-
-def persist_node_state(base_url: str, filepath: str | None = None) -> dict:
-    return save_state(base_url, filepath)
-
-
-def restore_node_state(base_url: str, filepath: str) -> dict:
-    return load_state(base_url, filepath)
