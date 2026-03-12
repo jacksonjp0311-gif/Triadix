@@ -210,3 +210,10 @@ Triadix v2.1 extends the HTTP node layer with peer registration, demo-chain seed
 Triadix v2.2 adds durable node persistence with save/load support for chain state, mempool state, account nonces, and API-level recovery flow.
 
 Triadix v2.3 adds stable node identity, peer metadata records, enriched node snapshots, and a cleaner trust surface for multi-node coordination.
+
+Triadix v2.4 adds periodic chain checkpoints, persisted checkpoint metadata, and checkpoint-verified sync for safer chain import and adoption.
+
+
+
+
+
