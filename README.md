@@ -217,7 +217,7 @@ Triadix v2.5 adds deterministic transaction IDs, receipt generation, receipt per
 
 Triadix v2.6 adds deterministic mempool ordering, configurable transaction selection limits, and selection diagnostics for explainable block assembly.
 
-
+Triadix v2.7 adds queued-gap mempool handling, allowing future-nonce transactions to wait safely until missing earlier nonces arrive while preserving deterministic selection and replay protection.
 
 
 
