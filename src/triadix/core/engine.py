@@ -36,8 +36,10 @@ class TriadicEngine:
         self.hI = ZERO32
         self.hC = ZERO32
         self.mempool: list[Transaction] = []
+        self.waiting_mempool: list[Transaction] = []
         self.account_nonces: dict[str, int] = {}
         self.receipts: dict[str, TransactionReceipt] = {}
+        self.last_selection_report: dict = {}
 
     def canonical_payload(self, transactions: list[Transaction]) -> bytes:
         payload_obj = [tx.to_dict() for tx in transactions]
@@ -54,7 +56,7 @@ class TriadicEngine:
         expected = self.current_expected_nonce(sender)
         sender_pending = sorted(
             [tx for tx in self.mempool if tx.sender == sender],
-            key=lambda tx: tx.nonce
+            key=lambda tx: (tx.nonce, tx.tx_id, tx.sender, tx.receiver)
         )
         for tx in sender_pending:
             if tx.nonce == expected:
@@ -62,6 +64,75 @@ class TriadicEngine:
             else:
                 break
         return expected
+
+    def has_known_tx_id(self, tx_id: str) -> bool:
+        if tx_id in self.receipts:
+            return True
+        for tx in self.mempool:
+            if tx.tx_id == tx_id:
+                return True
+        for tx in self.waiting_mempool:
+            if tx.tx_id == tx_id:
+                return True
+        return False
+
+    def ordered_mempool(self) -> list[Transaction]:
+        return sorted(
+            self.mempool,
+            key=lambda tx: (
+                tx.sender,
+                tx.nonce,
+                tx.tx_id,
+                tx.receiver,
+                tx.amount,
+            )
+        )
+
+    def ordered_waiting_mempool(self) -> list[Transaction]:
+        return sorted(
+            self.waiting_mempool,
+            key=lambda tx: (
+                tx.sender,
+                tx.nonce,
+                tx.tx_id,
+                tx.receiver,
+                tx.amount,
+            )
+        )
+
+    def promote_waiting_transactions(self) -> None:
+        changed = True
+        while changed:
+            changed = False
+            remaining = []
+            for tx in self.ordered_waiting_mempool():
+                expected = self.pending_expected_nonce(tx.sender)
+                if tx.nonce == expected:
+                    self.mempool.append(tx)
+                    changed = True
+                else:
+                    remaining.append(tx)
+            self.waiting_mempool = remaining
+
+    def select_transactions_for_block(self, max_transactions: int | None = None) -> list[Transaction]:
+        ordered = self.ordered_mempool()
+        limit = max_transactions if max_transactions is not None else self.config.max_transactions_per_block
+        selected = ordered[:limit]
+
+        self.last_selection_report = {
+            "mempool_size_before": len(self.mempool),
+            "waiting_mempool_size": len(self.waiting_mempool),
+            "ordered_candidate_ids": [tx.tx_id for tx in ordered],
+            "selected_ids": [tx.tx_id for tx in selected],
+            "selection_limit": limit,
+            "selected_count": len(selected),
+            "remaining_count": max(0, len(ordered) - len(selected)),
+        }
+        return selected
+
+    def remove_selected_from_mempool(self, selected: list[Transaction]) -> None:
+        selected_ids = {tx.tx_id for tx in selected}
+        self.mempool = [tx for tx in self.mempool if tx.tx_id not in selected_ids]
 
     def validate_transactions(self, transactions: list[Transaction], use_mempool_view: bool = False) -> None:
         seen_sender_nonces = set()
@@ -79,6 +150,9 @@ class TriadicEngine:
             if not verify_transaction(tx):
                 raise ValueError("Invalid transaction signature detected.")
 
+            if self.has_known_tx_id(tx.tx_id):
+                raise ValueError("Duplicate transaction id detected.")
+
             if tx.sender not in expected_map:
                 if use_mempool_view:
                     expected_map[tx.sender] = self.pending_expected_nonce(tx.sender)
@@ -92,12 +166,17 @@ class TriadicEngine:
                 raise ValueError("Duplicate sender nonce in transaction set.")
             seen_sender_nonces.add(key)
 
-            if tx.nonce != expected_nonce:
+            if not use_mempool_view and tx.nonce != expected_nonce:
                 raise ValueError(
                     f"Invalid nonce for sender {tx.sender}: got {tx.nonce}, expected {expected_nonce}."
                 )
 
-            expected_map[tx.sender] = expected_nonce + 1
+            if use_mempool_view and tx.nonce < self.current_expected_nonce(tx.sender):
+                raise ValueError(
+                    f"Replay/stale nonce for sender {tx.sender}: got {tx.nonce}, current expected {self.current_expected_nonce(tx.sender)}."
+                )
+
+            expected_map[tx.sender] = max(expected_map[tx.sender], tx.nonce + 1)
 
     def apply_transactions(self, transactions: list[Transaction], block_index: int, block_hC: str) -> None:
         for tx in transactions:
@@ -120,27 +199,46 @@ class TriadicEngine:
     def get_receipt(self, tx_id: str):
         return self.receipts.get(tx_id)
 
-    def submit_transaction(self, tx: Transaction) -> None:
+    def submit_transaction(self, tx: Transaction) -> dict:
         if not tx.tx_id:
             tx.tx_id = compute_tx_id(tx)
+
         self.validate_transactions([tx], use_mempool_view=True)
-        self.mempool.append(tx)
+
+        expected = self.pending_expected_nonce(tx.sender)
+        if tx.nonce == expected:
+            self.mempool.append(tx)
+            self.promote_waiting_transactions()
+            return {"accepted": True, "queued": False, "tx_id": tx.tx_id}
+        else:
+            self.waiting_mempool.append(tx)
+            self.waiting_mempool = self.ordered_waiting_mempool()
+            return {"accepted": True, "queued": True, "tx_id": tx.tx_id}
 
     def build_block_from_mempool(self, max_transactions: int | None = None) -> Block:
         if not self.chain:
             self.create_genesis_block()
 
+        self.promote_waiting_transactions()
+
         if not self.mempool:
+            self.last_selection_report = {
+                "mempool_size_before": 0,
+                "waiting_mempool_size": len(self.waiting_mempool),
+                "ordered_candidate_ids": [],
+                "selected_ids": [],
+                "selection_limit": max_transactions if max_transactions is not None else self.config.max_transactions_per_block,
+                "selected_count": 0,
+                "remaining_count": 0,
+            }
             return self.add_block()
 
-        if max_transactions is None:
-            selected = list(self.mempool)
-            self.mempool.clear()
-        else:
-            selected = self.mempool[:max_transactions]
-            self.mempool = self.mempool[max_transactions:]
+        selected = self.select_transactions_for_block(max_transactions=max_transactions)
+        self.remove_selected_from_mempool(selected)
 
-        return self._append_block(selected)
+        block = self._append_block(selected)
+        self.promote_waiting_transactions()
+        return block
 
     def _append_block(self, transactions: list[Transaction]) -> Block:
         self.validate_transactions(transactions, use_mempool_view=False)
@@ -365,9 +463,12 @@ class TriadicEngine:
             "tau": self.config.tau,
             "health_mode": self.config.health_mode,
             "mempool_size": len(self.mempool),
+            "waiting_mempool_size": len(self.waiting_mempool),
             "receipt_count": len(self.receipts),
             "account_nonces": self.account_nonces,
             "checkpoint_interval": self.config.checkpoint_interval,
+            "max_transactions_per_block": self.config.max_transactions_per_block,
+            "last_selection_report": self.last_selection_report,
             "checkpoints": self.checkpoint_map(),
             "coherence_stats": self.coherence_stats(),
         }
@@ -379,9 +480,11 @@ class TriadicEngine:
             "hC": self.hC.hex(),
             "chain": [b.to_dict() for b in self.chain],
             "mempool": [tx.to_dict() for tx in self.mempool],
+            "waiting_mempool": [tx.to_dict() for tx in self.waiting_mempool],
             "account_nonces": self.account_nonces,
             "receipts": {k: v.to_dict() for k, v in self.receipts.items()},
             "checkpoints": self.checkpoint_map(),
+            "last_selection_report": self.last_selection_report,
             "status": self.status_report(),
         }
 
@@ -404,6 +507,7 @@ class TriadicEngine:
         engine = cls()
         engine.chain = []
         engine.mempool = [Transaction(**tx) for tx in data.get("mempool", [])]
+        engine.waiting_mempool = [Transaction(**tx) for tx in data.get("waiting_mempool", [])]
         engine.account_nonces = {
             str(k): int(v) for k, v in data.get("account_nonces", {}).items()
         }
@@ -431,6 +535,7 @@ class TriadicEngine:
             str(k): TransactionReceipt(**v)
             for k, v in data.get("receipts", {}).items()
         }
+        engine.last_selection_report = data.get("last_selection_report", {})
 
         engine.hE = bytes.fromhex(data["hE"]) if data.get("hE") else ZERO32
         engine.hI = bytes.fromhex(data["hI"]) if data.get("hI") else ZERO32

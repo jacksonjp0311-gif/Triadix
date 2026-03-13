@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     min_health_blocks: int = 12
     state_file: str = str(Path.cwd() / "triadix-run" / "state" / "node_state.json")
     checkpoint_interval: int = 5
+    max_transactions_per_block: int = 100
 
     model_config = SettingsConfigDict(
         env_prefix="TRIADIX_",

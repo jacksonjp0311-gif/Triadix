@@ -22,15 +22,18 @@ def set_identity(base_url: str, label: str | None = None, base_url_value: str | 
     response.raise_for_status()
     return response.json()
 
+
 def get_chain(base_url: str) -> dict:
     response = requests.get(f"{base_url}/chain", timeout=20)
     response.raise_for_status()
     return response.json()
 
+
 def list_peers(base_url: str) -> dict:
     response = requests.get(f"{base_url}/peers", timeout=10)
     response.raise_for_status()
     return response.json()
+
 
 def register_peer(base_url: str, peer_id: str, peer_base_url: str = "", label: str = "") -> dict:
     response = requests.post(
@@ -41,15 +44,19 @@ def register_peer(base_url: str, peer_id: str, peer_base_url: str = "", label: s
     response.raise_for_status()
     return response.json()
 
+
 def submit_transaction(base_url: str, tx: dict) -> dict:
     response = requests.post(f"{base_url}/transactions", json=tx, timeout=20)
     response.raise_for_status()
     return response.json()
 
-def build_from_mempool(base_url: str) -> dict:
-    response = requests.post(f"{base_url}/build", timeout=20)
+
+def build_from_mempool(base_url: str, max_transactions: int | None = None) -> dict:
+    payload = {"max_transactions": max_transactions} if max_transactions is not None else {}
+    response = requests.post(f"{base_url}/build", json=payload, timeout=20)
     response.raise_for_status()
     return response.json()
+
 
 def submit_and_build(base_url: str, tx: dict) -> dict:
     response = requests.post(
@@ -60,6 +67,7 @@ def submit_and_build(base_url: str, tx: dict) -> dict:
     response.raise_for_status()
     return response.json()
 
+
 def seed_demo(base_url: str, blocks: int = 12) -> dict:
     response = requests.post(
         f"{base_url}/seed-demo",
@@ -68,6 +76,7 @@ def seed_demo(base_url: str, blocks: int = 12) -> dict:
     )
     response.raise_for_status()
     return response.json()
+
 
 def sync_chain(base_url: str, chain: list[dict], checkpoints: dict[str, str] | None = None) -> dict:
     response = requests.post(
@@ -78,6 +87,7 @@ def sync_chain(base_url: str, chain: list[dict], checkpoints: dict[str, str] | N
     response.raise_for_status()
     return response.json()
 
+
 def save_state(base_url: str, filepath: str | None = None) -> dict:
     response = requests.post(
         f"{base_url}/save-state",
@@ -86,6 +96,7 @@ def save_state(base_url: str, filepath: str | None = None) -> dict:
     )
     response.raise_for_status()
     return response.json()
+
 
 def load_state(base_url: str, filepath: str) -> dict:
     response = requests.post(

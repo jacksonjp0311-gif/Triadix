@@ -7,7 +7,7 @@ from .transactions import sign_transaction
 from ..models.block import Transaction
 
 
-app = FastAPI(title="Triadix API", version="2.5.0")
+app = FastAPI(title="Triadix API", version="2.7.0")
 NODE = TriadicNode(label="api-node")
 
 
@@ -50,11 +50,15 @@ class IdentityIn(BaseModel):
     base_url: str | None = None
 
 
+class BuildIn(BaseModel):
+    max_transactions: int | None = None
+
+
 @app.get("/")
 def root():
     return {
         "project": "Triadix",
-        "version": "2.5.0",
+        "version": "2.7.0",
         "message": "Triadix API node active."
     }
 
@@ -114,127 +118,34 @@ def submit_transaction(tx_in: TransactionIn):
     try:
         if not NODE.engine.chain:
             NODE.engine.create_genesis_block()
-        NODE.engine.submit_transaction(tx)
+        result = NODE.engine.submit_transaction(tx)
         return {
-            "accepted": True,
-            "tx_id": tx.tx_id,
+            "accepted": result["accepted"],
+            "queued": result["queued"],
+            "tx_id": result["tx_id"],
             "mempool_size": len(NODE.engine.mempool),
+            "waiting_mempool_size": len(NODE.engine.waiting_mempool),
         }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.post("/build")
-def build_from_mempool():
+def build_from_mempool(payload: BuildIn | None = None):
     try:
         if not NODE.engine.chain:
             NODE.engine.create_genesis_block()
-        block = NODE.engine.build_block_from_mempool()
+        max_transactions = payload.max_transactions if payload else None
+        block = NODE.engine.build_block_from_mempool(max_transactions=max_transactions)
         return {
             "built": True,
             "block_index": block.index,
             "chain_length": len(NODE.engine.chain),
             "mempool_size": len(NODE.engine.mempool),
+            "waiting_mempool_size": len(NODE.engine.waiting_mempool),
             "valid": NODE.engine.is_chain_valid(),
+            "selection_report": NODE.engine.last_selection_report,
             "status": NODE.status_snapshot(),
         }
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/submit-and-build")
-def submit_and_build(tx_in: TransactionIn):
-    tx = Transaction(**tx_in.model_dump())
-    try:
-        if not NODE.engine.chain:
-            NODE.engine.create_genesis_block()
-        NODE.engine.submit_transaction(tx)
-        block = NODE.engine.build_block_from_mempool()
-        receipt = NODE.engine.get_receipt(tx.tx_id)
-        return {
-            "accepted": True,
-            "built": True,
-            "tx_id": tx.tx_id,
-            "receipt": receipt.to_dict() if receipt else None,
-            "block_index": block.index,
-            "chain_length": len(NODE.engine.chain),
-            "valid": NODE.engine.is_chain_valid(),
-            "status": NODE.status_snapshot(),
-        }
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-# other endpoints unchanged enough for this layer
-@app.post("/seed-demo")
-def seed_demo(payload: SeedDemoIn):
-    try:
-        if not NODE.engine.chain:
-            NODE.engine.create_genesis_block()
-
-        private_key, public_key = generate_wallet()
-
-        tx = Transaction(
-            sender="demo-alice",
-            receiver="demo-bob",
-            amount=12.0,
-            data="seed-demo-payment",
-            public_key=public_key,
-            nonce=NODE.engine.current_expected_nonce("demo-alice"),
-        )
-        sign_transaction(tx, private_key)
-
-        NODE.engine.submit_transaction(tx)
-        NODE.engine.build_block_from_mempool()
-
-        while len(NODE.engine.chain) < payload.blocks:
-            NODE.engine.add_block()
-
-        return {
-            "seeded": True,
-            "chain_length": len(NODE.engine.chain),
-            "status": NODE.status_snapshot(),
-        }
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/sync")
-def sync_chain(payload: ChainSyncIn):
-    try:
-        result = NODE.try_sync_from_chain_data(payload.chain, checkpoint_map=payload.checkpoints)
-        return {
-            "adopted": result.adopted,
-            "reason": result.reason,
-            "local_length": result.local_length,
-            "candidate_length": result.candidate_length,
-            "checkpoint_verified": result.checkpoint_verified,
-            "status": NODE.status_snapshot(),
-        }
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/save-state")
-def save_state(payload: SaveStateIn):
-    try:
-        path = NODE.engine.save_to_file(payload.filepath)
-        return {
-            "saved": True,
-            "filepath": path,
-            "status": NODE.status_snapshot(),
-        }
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/load-state")
-def load_state(payload: LoadStateIn):
-    try:
-        NODE.engine = NODE.engine.load_from_file(payload.filepath)
-        return {
-            "loaded": True,
-            "filepath": payload.filepath,
-            "status": NODE.status_snapshot(),
-        }
-    except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
