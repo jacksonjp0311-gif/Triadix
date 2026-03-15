@@ -1,6 +1,6 @@
 ﻿TRIADIX
 Three hashes. One truth. Zero blind spots.
-https://grok.com/imagine/post/52a75386-27e3-4cd1-81a3-19e597afd7e7?source=copy_link&platform=ios&t=e4229ffd08f0
+
 
 A coherence-native ledger kernel for deterministic validation, drift observability, and triadic state integrity.
 
