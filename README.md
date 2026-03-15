@@ -1,223 +1,261 @@
-﻿TRIADIX
-Three hashes. One truth. Zero blind spots.
+TRIADIX  
+**"Three hashes. One truth. Zero blind spots."**
 
-A coherence-native ledger kernel for deterministic validation, drift observability, and triadic state integrity.
+A coherence-native ledger system focused on two guarantees at once:
+1) chain integrity, and 2) internal state coherence over time.
 
-Why Triadix exists
+---
 
-Most ledgers answer one question:
+## Executive Summary
 
-Did the chain link correctly?
+Triadix started as a deterministic triadic ledger kernel and has evolved into a broader local node stack with:
+- deterministic block validation,
+- signed transactions,
+- mempool + queued-gap handling,
+- receipt generation,
+- node identity and peer metadata,
+- checkpoint-aware chain sync,
+- HTTP API transport.
 
-Triadix answers two:
+The repository includes runnable demos, a CLI, API-node workflows, benchmark scripts, and a comprehensive automated test suite.
 
-Did the chain link correctly?
-And is the evolving internal state still coherent?
+---
 
-That second question is the reason this project exists.
+## Why Triadix Exists
 
-Triadix extends ordinary hash-chaining with a triadic state cycle:
+Most chains answer: **"Is linkage intact?"**
 
-hE
+Triadix also answers: **"Is the chain's internal state evolution still coherent?"**
 
-hI
+Instead of a single digest path, Triadix evolves three related hash channels per block and computes coherence metrics from that state. This creates a drift-observable ledger primitive for provenance-heavy and audit-heavy environments.
 
-hC
+---
 
-Each block updates all three channels, then computes coherence metrics over the resulting state. The goal is not just to preserve linkage, but to expose drift, distribution, and health inside the chain itself.
+## Architecture at a Glance
 
-Canonical result
+### Triadic State Cycle
 
-Triadix v1.2 passed its current anchor stress run:
+Each block advances three channels:
+- `hE`: raw payload path
+- `hI`: sorted-byte canonical payload path
+- `hC`: pre-hashed payload path
 
-100,000 blocks
+### Validation Model
 
-valid = True
+A chain is valid when recomputation confirms:
+- previous triadic references,
+- triadic hash values,
+- stored per-block metrics.
 
-healthy = True
+### Health Model
 
-3,442.35 blocks/sec
+A chain is healthy when coherence distribution satisfies policy thresholds (for example p25-based policy against `tau`).
 
-tau = 0.244
+---
 
-health_mode = p25
+## Repository Analysis
 
-Coherence profile
+### 1) Product Surface
 
-min: 0.209818
+Triadix currently exposes four practical surfaces:
+- **Core engine** (`src/triadix/core/engine.py`) for chain construction, validation, health checks, mempool logic, transaction admission, receipts, and checkpoint behavior.
+- **Node layer** (`src/triadix/core/node.py`) for identity, peer metadata, sync, and orchestrated node behavior.
+- **HTTP API** (`src/triadix/core/api.py`) for status, peers, transaction submission, block building, chain export, and receipt access.
+- **CLI** (`src/triadix/cli.py`) for local run and validate loops.
 
-mean: 0.248315
+### 2) Code Organization and Intent
 
-max: 0.273224
+- `src/triadix/core/`: primary runtime logic (engine, transactions, wallet, API, sync/orchestration).
+- `src/triadix/models/`: data structures such as blocks, receipts, and node records.
+- `src/triadix/utils/`: configuration and utilities.
+- `src/triadix/visualization/`: plotting helpers for coherence/state output.
+- `tests/`: broad coverage over engine behavior, policy, transport, persistence, sync, mempool, receipts, and checkpoints.
+- `examples/`: runnable demonstrations by capability layer.
+- `benchmarks/`: stress/performance calibration and benchmark utilities.
+- `docs/`: conceptual and flow documentation.
 
-p05: 0.236975
+### 3) Maturity Signals
 
-p25: 0.244040
+The project demonstrates engineering maturity through:
+- deterministic, recomputation-first validation,
+- extensive pytest coverage across core and network-adjacent flows,
+- explicit examples for real workflows,
+- benchmark artifacts/checkpoints for repeatability,
+- API and CLI entry points suitable for local integration testing.
 
-p50: 0.248575
+### 4) Tradeoffs / Current Boundaries
 
-p75: 0.252928
+Triadix is a strong **kernel + local node transport stack**, but not yet a full decentralized production network. It does not currently present a finalized consensus protocol, smart-contract runtime, or fully hardened distributed validator economy.
 
-p95: 0.258508
+---
 
-final: 0.249249
+## Directory Structure
 
-fraction >= tau: 0.751170
-
-This is the current benchmark anchor for the repository.
-
-What Triadix is
-
-Triadix v1.2 is a working ledger kernel with:
-
-triadic hash-state evolution
-
-deterministic payload canonicalization
-
-explicit genesis creation
-
-full recomputation-based validation
-
-tamper detection
-
-empirical coherence calibration
-
-percentile-based health policy
-
-test and benchmark scaffolding
-
-This is the kernel first.
-
-What Triadix is not
-
-Triadix v1.2 is not yet:
-
-a distributed L1 network
-
-an L2 system
-
-a staking protocol
-
-a smart contract VM
-
-a validator network
-
-a finished consensus layer
-
-Those come after the kernel is proven.
-
-Core model
-Triadic state cycle
-
-Each block advances three coupled channels derived from different payload views:
-
-hE — raw payload path
-
-hI — sorted-byte payload path
-
-hC — pre-hashed payload path
-
-This gives Triadix a richer internal state transition than a single linear digest.
-
-Validation
-
-A chain is valid if:
-
-previous triadic references match
-
-recomputed triadic hashes match stored values
-
-recomputed metrics match stored values
-
-Health
-
-A chain is healthy if its coherence distribution satisfies a calibrated policy.
-
-Current default policy:
-
-tau = 0.244
-
-health_mode = p25
-
-That means health is evaluated against the lower quartile of the coherence distribution, rather than requiring every block to clear threshold.
-
-Why it matters
-
-Triadix is aimed at systems where plain integrity is not enough.
-
-Strong fit areas include:
-
-AI provenance ledgers
-
-scientific reproducibility logs
-
-drift-aware audit trails
-
-compliance-oriented execution records
-
-coherence-aware blockchain research
-
-If a system needs to preserve not just state, but state quality, Triadix is the right kind of primitive.
-
-Repository layout
-
+```text
 Triadix/
-├── src/triadix/
-│ ├── cli.py
-│ ├── models/
-│ ├── core/
-│ ├── utils/
-│ └── visualization/
+├── README.md
+├── LICENSE
+├── pyproject.toml
+├── src/
+│   └── triadix/
+│       ├── __init__.py
+│       ├── __version__.py
+│       ├── cli.py
+│       ├── core/
+│       │   ├── api.py
+│       │   ├── engine.py
+│       │   ├── node.py
+│       │   ├── orchestrator.py
+│       │   ├── transactions.py
+│       │   ├── wallet.py
+│       │   └── ...
+│       ├── models/
+│       │   ├── block.py
+│       │   ├── node.py
+│       │   └── receipt.py
+│       ├── utils/
+│       └── visualization/
 ├── tests/
-├── benchmarks/
-├── docs/
 ├── examples/
-└── manifest/
+├── benchmarks/
+│   └── results/
+├── docs/
+├── manifest/
+└── scripts/
+```
 
-Quick start
-Install
+---
 
+## Installation
+
+### Requirements
+
+- Python 3.10+
+- `pip`
+
+### Recommended Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+pip install --upgrade pip
 pip install -e .[dev]
+```
 
-Run tests
+### Verify Installation
 
+```bash
+triadix --help
 python -m pytest -q
+```
 
-Run the CLI
+---
 
+## Quick Start
+
+### CLI Run
+
+```bash
 triadix run --blocks 96
+```
 
-Run the ultra benchmark
+### CLI Validation
 
-python .\benchmarks\ultra_nuclear_test.py
+```bash
+triadix validate --blocks 96
+```
 
-Triadix v1.3 introduces signed transaction support with wallet key generation, cryptographic verification, tamper rejection, enforced admission rules, and a working end-to-end signed transaction demo.
+### Start API Node
 
-Triadix v1.4 adds a mempool, sender nonce tracking, replay rejection, block assembly from pending transactions, and an end-to-end mempool demo with valid and healthy execution.
+```bash
+python -m triadix.core.server --host 127.0.0.1 --port 8000
+```
 
-Triadix v1.5 introduces multi-node chain sync, deterministic valid-chain adoption, and signed-transaction chain transfer between nodes.
+### Run Example Scripts
 
-Triadix v1.7 introduces a minimal transport-layer scaffold with node status, chain export/sync flow, signed transaction transport semantics, and passing transport-level tests.
+```bash
+python examples/basic_run.py
+python examples/signed_transaction_demo.py
+python examples/mempool_demo.py
+python examples/http_end_to_end_demo.py
+```
 
-Triadix v1.8 introduces a runnable API-node layer with FastAPI transport, HTTP client helpers, local multi-port launch scripts, and passing transport-level tests.
+---
 
-Triadix v1.9 completes the first end-to-end local HTTP flow: signed transaction submission, block build, chain fetch, and valid-chain adoption between API nodes.
+## API Snapshot
 
-Triadix v2.0 consolidates the stack with unified status reporting, health evaluability rules, cleaner API/node snapshots, and aligned demo semantics across local HTTP transport.
+The FastAPI service (`src/triadix/core/api.py`) includes routes such as:
+- `GET /` project/version heartbeat,
+- `GET /status` node + engine status snapshot,
+- `GET /chain` chain and checkpoint export,
+- `GET /peers` peer registry view,
+- `GET /receipts/{tx_id}` transaction receipt retrieval,
+- `POST /transactions` transaction submission,
+- `POST /build` block assembly from mempool,
+- `POST /peers` peer registration,
+- `POST /identity` node metadata updates.
 
-Triadix v2.1 extends the HTTP node layer with peer registration, demo-chain seeding, submit-and-build flow, and a cleaner local orchestration path for multi-node testing.
+---
 
-Triadix v2.2 adds durable node persistence with save/load support for chain state, mempool state, account nonces, and API-level recovery flow.
+## Testing and Quality
 
-Triadix v2.3 adds stable node identity, peer metadata records, enriched node snapshots, and a cleaner trust surface for multi-node coordination.
+The test suite covers:
+- engine correctness,
+- hash behavior,
+- policy and health evaluation,
+- signed transactions and admission rules,
+- mempool and queued-gap handling,
+- receipt persistence and retrieval,
+- node sync, API transport, and orchestrator flow,
+- checkpoint and persistence behavior,
+- benchmark sanity checks.
 
-Triadix v2.4 adds periodic chain checkpoints, persisted checkpoint metadata, and checkpoint-verified sync for safer chain import and adoption.
+Run all tests:
 
-Triadix v2.5 adds deterministic transaction IDs, receipt generation, receipt persistence, and API-level receipt lookup for clean transaction outcome proof.
+```bash
+python -m pytest -q
+```
 
-Triadix v2.6 adds deterministic mempool ordering, configurable transaction selection limits, and selection diagnostics for explainable block assembly.
+---
 
-Triadix v2.7 adds queued-gap mempool handling, allowing future-nonce transactions to wait safely until missing earlier nonces arrive while preserving deterministic selection and replay protection.
+## Benchmarks and Performance
 
+The repository includes benchmark runners and result artifacts under `benchmarks/` and `benchmarks/results/`.
 
+Typical commands:
 
+```bash
+python benchmarks/benchmark_triadix.py
+python benchmarks/ultra_nuclear_test.py
+python benchmarks/deep_nuclear_test.py
+```
+
+Use these to profile throughput, coherence distribution, and policy behavior under higher block counts.
+
+---
+
+## Version Progression (Repository Narrative)
+
+- **v1.2**: triadic ledger kernel baseline.
+- **v1.3**: signed transaction support and wallet flow.
+- **v1.4**: mempool + nonce/replay protection + block assembly.
+- **v1.5**: multi-node sync and deterministic valid-chain adoption.
+- **v1.7–v1.9**: transport scaffolding and full local HTTP flow.
+- **v2.0–v2.7**: status model cleanup, peer metadata, persistence, checkpoints, receipts, deterministic selection diagnostics, queued-gap handling.
+
+---
+
+## Practical Use Cases
+
+Triadix is a strong fit for:
+- AI provenance ledgers,
+- scientific and simulation reproducibility trails,
+- compliance and audit-grade execution logs,
+- drift-aware data lineage systems,
+- blockchain research centered on coherence-aware integrity.
+
+---
+
+## License
+
+MIT.
